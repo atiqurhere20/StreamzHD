@@ -44,7 +44,9 @@ export default function VideoPlayer({ channelSlug, channelName, logoUrl }: Props
         const data = await res.json();
         if (!active) return;
         if (data.streamUrl) {
-          setResolvedStreamUrl(data.streamUrl);
+          // Wrap the URL with our proxy to bypass CORS restrictions
+          const proxyUrl = `/api/channels/proxy?url=${encodeURIComponent(data.streamUrl)}`;
+          setResolvedStreamUrl(proxyUrl);
         } else {
           setHasError(true);
           setErrorMessage("Failed to resolve stream URL.");
