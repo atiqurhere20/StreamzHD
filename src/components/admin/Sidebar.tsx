@@ -35,7 +35,7 @@ export function Sidebar({ mobile, onClose }: { mobile?: boolean; onClose?: () =>
 
   const asideClass = mobile
     ? "w-64 bg-[#0a0a0a] border-r border-border h-full flex flex-col"
-    : "w-64 bg-[#0a0a0a] border-r border-border min-h-screen flex flex-col hidden lg:flex shrink-0";
+    : "w-64 bg-[#0a0a0a] border-r border-border h-screen sticky top-0 flex flex-col hidden lg:flex shrink-0 overflow-y-auto";
 
   return (
     <aside className={asideClass}>

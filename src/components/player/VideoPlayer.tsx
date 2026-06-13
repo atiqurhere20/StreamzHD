@@ -362,33 +362,35 @@ export default function VideoPlayer({ channelSlug, channelName, logoUrl }: Props
               </button>
 
               {/* Volume Controls */}
-              <div className="flex items-center gap-1.5 group/volume">
+              <div className="flex items-center gap-1 group/volume">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleMute();
                   }}
-                  className="p-2 hover:bg-white/10 rounded-full text-white transition"
+                  className="p-2 hover:bg-white/10 rounded-full text-white transition-colors duration-150"
                 >
-                  {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  {isMuted || volume === 0 ? <VolumeX className="h-4.5 w-4.5" /> : <Volume2 className="h-4.5 w-4.5" />}
                 </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    changeVolume(parseFloat(e.target.value));
-                  }}
-                  className="w-0 group-hover/volume:w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-primary transition-all duration-300 outline-none"
-                />
+                <div className="w-0 overflow-hidden group-hover/volume:w-20 transition-all duration-300 ease-out flex items-center">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      changeVolume(parseFloat(e.target.value));
+                    }}
+                    className="w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-primary outline-none transition-all"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Right-aligned actions */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1.5">
               {/* Settings Trigger */}
               <div className="relative">
                 <button
@@ -396,25 +398,25 @@ export default function VideoPlayer({ channelSlug, channelName, logoUrl }: Props
                     e.stopPropagation();
                     setShowSettings(!showSettings);
                   }}
-                  className={`p-2 hover:bg-white/10 rounded-full text-white transition ${
-                    showSettings ? "text-primary" : ""
+                  className={`p-2 hover:bg-white/10 rounded-full text-white transition-colors duration-150 ${
+                    showSettings ? "text-primary bg-white/5" : ""
                   }`}
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-4.5 w-4.5" />
                 </button>
 
                 {showSettings && (
                   <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute bottom-12 right-0 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl p-2.5 w-36 shadow-2xl animate-fade-in flex flex-col gap-1 z-30"
+                    className="absolute bottom-12 right-0 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl p-2 w-32 shadow-2xl animate-fade-in flex flex-col gap-0.5 z-30"
                   >
-                    <span className="text-[10px] font-bold text-text-muted px-2 py-1 uppercase tracking-wider">Speed</span>
+                    <span className="text-[10px] font-bold text-text-dim px-2 py-1 uppercase tracking-wider">Speed</span>
                     {[0.5, 1, 1.25, 1.5, 2].map((rate) => (
                       <button
                         key={rate}
                         onClick={() => handleRateChange(rate)}
-                        className={`text-xs text-left px-2 py-1.5 rounded-lg hover:bg-white/10 transition ${
-                          playbackRate === rate ? "text-primary font-bold" : "text-white/80"
+                        className={`text-xs text-left px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors duration-150 ${
+                          playbackRate === rate ? "text-primary font-bold bg-primary/5" : "text-white/80"
                         }`}
                       >
                         {rate === 1 ? "Normal" : `${rate}x`}
@@ -431,9 +433,9 @@ export default function VideoPlayer({ channelSlug, channelName, logoUrl }: Props
                   togglePip();
                 }}
                 title="Picture in Picture"
-                className={`p-2 hover:bg-white/10 rounded-full text-white transition ${isPip ? "text-primary" : ""}`}
+                className={`p-2 hover:bg-white/10 rounded-full text-white transition-colors duration-150 ${isPip ? "text-primary" : ""}`}
               >
-                <MonitorPlay className="h-4 w-4" />
+                <MonitorPlay className="h-4.5 w-4.5" />
               </button>
 
               {/* Fullscreen */}
@@ -442,9 +444,9 @@ export default function VideoPlayer({ channelSlug, channelName, logoUrl }: Props
                   e.stopPropagation();
                   toggleFullscreen();
                 }}
-                className="p-2 hover:bg-white/10 rounded-full text-white transition"
+                className="p-2 hover:bg-white/10 rounded-full text-white transition-colors duration-150"
               >
-                <Maximize className="h-4 w-4" />
+                <Maximize className="h-4.5 w-4.5" />
               </button>
             </div>
           </div>
