@@ -9,9 +9,12 @@ export function CategorySection({ categories }: { categories: Category[] }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {categories.map((c) => (
           <Link key={c.id} href={`/category/${c.slug}`}
-            className="bg-card hover:bg-card-hover border border-border hover:border-primary/40 rounded-xl p-5 transition group">
-            <div className="font-semibold group-hover:text-primary transition">{c.name}</div>
-            <div className="text-xs text-text-dim mt-1">{c.channel_count ?? 0} channels</div>
+            className="bg-card hover:bg-card-hover border border-border hover:border-primary/40 rounded-xl p-5 transition group min-w-0 flex flex-col justify-between"
+          >
+            <div className="font-semibold group-hover:text-primary transition truncate w-full" title={c.name}>
+              {c.name}
+            </div>
+            <div className="text-xs text-text-dim mt-1 truncate w-full">{c.channel_count ?? 0} channels</div>
           </Link>
         ))}
       </div>

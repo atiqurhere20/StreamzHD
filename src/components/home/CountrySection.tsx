@@ -9,10 +9,13 @@ export function CountrySection({ countries }: { countries: Country[] }) {
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
         {countries.map((c) => (
           <Link key={c.id} href={`/country/${c.code}`}
-            className="bg-card hover:bg-card-hover border border-border hover:border-primary/40 rounded-xl p-4 text-center transition group">
+            className="bg-card hover:bg-card-hover border border-border hover:border-primary/40 rounded-xl p-4 text-center transition group min-w-0 flex flex-col justify-between items-center"
+          >
             <div className="text-2xl mb-1">{flagEmoji(c.code)}</div>
-            <div className="font-medium text-sm group-hover:text-primary transition">{c.name}</div>
-            <div className="text-[11px] text-text-dim mt-0.5">{c.channel_count ?? 0}</div>
+            <div className="font-medium text-sm group-hover:text-primary transition truncate w-full" title={c.name}>
+              {c.name}
+            </div>
+            <div className="text-[11px] text-text-dim mt-0.5 truncate w-full">{c.channel_count ?? 0}</div>
           </Link>
         ))}
       </div>
