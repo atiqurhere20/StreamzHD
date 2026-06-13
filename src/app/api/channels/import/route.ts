@@ -59,8 +59,10 @@ export async function POST(req: NextRequest) {
       const missingGroupNames = new Set<string>();
       for (const c of parsed) {
         if (!c.name || !c.streamUrl || !c.group) continue;
-        const groupName = c.group.trim();
-        if (!groupName) continue;
+        // Split by semicolon and get the first one for category mapping (to keep it organized and clean)
+        const groups = c.group.split(";").map(g => g.trim()).filter(Boolean);
+        if (groups.length === 0) continue;
+        const groupName = groups[0];
         const slug = generateSlug(groupName);
         if (slug && !catMap.has(slug) && !catMap.has(groupName.toLowerCase())) {
           missingGroupNames.add(groupName);
@@ -170,7 +172,8 @@ export async function POST(req: NextRequest) {
     .map((c) => {
       let categoryId = defaultCategoryId;
       if (!categoryId && c.group) {
-        const groupName = c.group.trim();
+        const groups = c.group.split(";").map(g => g.trim()).filter(Boolean);
+        const groupName = groups[0] || "";
         const slug = generateSlug(groupName);
         categoryId = catMap.get(slug) || catMap.get(groupName.toLowerCase()) || null;
       }

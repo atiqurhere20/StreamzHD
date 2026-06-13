@@ -18,8 +18,8 @@ async function fetchHomeData() {
     supabasePublic.from("channels").select("*, category:categories(name,slug), country:countries(name,code)").eq("is_active", true).order("created_at", { ascending: false }).limit(12),
     supabasePublic.from("channels").select("*, category:categories(name,slug), country:countries(name,code)").eq("is_active", true).order("view_count", { ascending: false }).limit(12),
     supabasePublic.from("channels").select("id,name,slug,language,is_featured,is_active").eq("is_active", true).order("view_count", { ascending: false }).limit(6),
-    supabasePublic.from("categories").select("*").order("sort_order"),
-    supabasePublic.from("countries").select("*").order("sort_order"),
+    supabasePublic.from("categories").select("*, channels:channels(count)").order("sort_order"),
+    supabasePublic.from("countries").select("*, channels:channels(count)").order("sort_order"),
   ]);
   return {
     slides: (slides.data || []) as SliderImage[],
@@ -27,8 +27,14 @@ async function fetchHomeData() {
     recent: (recent.data || []) as Channel[],
     popular: (popular.data || []) as Channel[],
     trending: (trending.data || []) as Channel[],
-    categories: (cats.data || []) as Category[],
-    countries: (countries.data || []) as Country[],
+    categories: ((cats.data || []) as any[]).map(c => ({
+      ...c,
+      channel_count: c.channels?.[0]?.count ?? 0
+    })) as Category[],
+    countries: ((countries.data || []) as any[]).map(c => ({
+      ...c,
+      channel_count: c.channels?.[0]?.count ?? 0
+    })) as Country[],
   };
 }
 
