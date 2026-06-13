@@ -19,7 +19,7 @@ export function ChannelCard({ channel }: { channel: Channel }) {
               alt={channel.name}
               fill
               sizes="(max-width:768px) 50vw, 25vw"
-              className="object-contain p-6 group-hover:scale-105 transition-transform duration-300"
+              className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
             <Radio className="h-10 w-10 text-text-dim" />
