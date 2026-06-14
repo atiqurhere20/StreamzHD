@@ -27,14 +27,21 @@ async function fetchHomeData() {
     recent: (recent.data || []) as Channel[],
     popular: (popular.data || []) as Channel[],
     trending: (trending.data || []) as Channel[],
-    categories: ((cats.data || []) as any[]).map(c => ({
-      ...c,
-      channel_count: c.channels?.[0]?.count ?? 0
-    })) as Category[],
-    countries: ((countries.data || []) as any[]).map(c => ({
-      ...c,
-      channel_count: c.channels?.[0]?.count ?? 0
-    })) as Country[],
+    categories: ((cats.data || []) as any[])
+      .map(c => ({
+        ...c,
+        channel_count: c.channels?.[0]?.count ?? 0
+      }))
+      .filter(c => c.channel_count > 0)
+      .sort((a, b) => b.channel_count - a.channel_count) as Category[],
+    countries: ((countries.data || []) as any[])
+      .map(c => ({
+        ...c,
+        channel_count: c.channels?.[0]?.count ?? 0
+      }))
+      .filter(c => c.channel_count > 0)
+      .sort((a, b) => b.channel_count - a.channel_count)
+      .slice(0, 16) as Country[],
   };
 }
 
