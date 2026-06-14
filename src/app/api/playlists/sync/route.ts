@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/server";
+import { supabaseAdmin, createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import { isValidStreamUrl, jsonError, jsonOk, sanitizeText } from "@/lib/middleware-helpers";
 import { parseM3U } from "@/lib/m3u-parser";
@@ -49,7 +49,12 @@ const COUNTRY_METADATA: Record<string, { name: string; flag: string }> = {
 export async function GET(req: NextRequest) {
   try { await requireAdmin(req); } catch (r) { return r as Response; }
 
-  const { data, error } = await supabaseAdmin
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const useAdmin = serviceKey && serviceKey !== "undefined" && serviceKey !== anonKey;
+  const db = useAdmin ? supabaseAdmin : await createSupabaseServerClient();
+
+  const { data, error } = await db
     .from("playlists")
     .select("*")
     .order("type")
@@ -64,21 +69,15 @@ export async function POST(req: NextRequest) {
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!serviceKey || serviceKey === "undefined") {
-    return jsonError("Backend Configuration Error: SUPABASE_SERVICE_ROLE_KEY is undefined or empty. Please check your .env.local file and restart the development server.", 500);
-  }
-  
-  if (serviceKey === anonKey) {
-    return jsonError("Backend Configuration Error: SUPABASE_SERVICE_ROLE_KEY is identical to NEXT_PUBLIC_SUPABASE_ANON_KEY. The sync engine requires the Service Role Key to bypass RLS.", 500);
-  }
+  const useAdmin = serviceKey && serviceKey !== "undefined" && serviceKey !== anonKey;
+  const db = useAdmin ? supabaseAdmin : await createSupabaseServerClient();
 
   const body = await req.json().catch(() => ({}));
   const playlistId = body?.playlist_id; // Option to sync a single playlist
 
   try {
     // 1. Fetch active playlists
-    let query = supabaseAdmin.from("playlists").select("*").eq("is_active", true);
+    let query = db.from("playlists").select("*").eq("is_active", true);
     if (playlistId) {
       query = query.eq("id", playlistId);
     }
@@ -89,8 +88,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Load category and country maps
-    const { data: categories } = await supabaseAdmin.from("categories").select("id, name, slug");
-    const { data: countries } = await supabaseAdmin.from("countries").select("id, name, code");
+    const { data: categories } = await db.from("categories").select("id, name, slug");
+    const { data: countries } = await db.from("countries").select("id, name, code");
 
     const catMap = new Map<string, string>(); // slug and lowercase name -> id
     const countryMap = new Map<string, string>(); // code and lowercase name -> id
@@ -148,7 +147,7 @@ export async function POST(req: NextRequest) {
 
         if (!catId) {
           const catName = playlist.name.charAt(0).toUpperCase() + playlist.name.slice(1);
-          const { data: newCat, error: catCreateError } = await supabaseAdmin
+          const { data: newCat, error: catCreateError } = await db
             .from("categories")
             .insert({ name: catName, slug: catSlug, sort_order: 0 })
             .select("id")
@@ -170,7 +169,7 @@ export async function POST(req: NextRequest) {
           let cId = countryMap.get(countryCode);
           if (!cId) {
             const meta = COUNTRY_METADATA[countryCode] || { name: playlist.name, flag: "" };
-            const { data: newCountry, error: countryCreateError } = await supabaseAdmin
+            const { data: newCountry, error: countryCreateError } = await db
               .from("countries")
               .insert({
                 name: meta.name,
@@ -212,7 +211,7 @@ export async function POST(req: NextRequest) {
           slug: generateSlug(name) || `cat-${Math.random().toString(36).slice(2, 8)}`,
           sort_order: 0,
         }));
-        const { data: createdCats } = await supabaseAdmin
+        const { data: createdCats } = await db
           .from("categories")
           .insert(newCatsPayload)
           .select("id, name, slug");
@@ -245,7 +244,7 @@ export async function POST(req: NextRequest) {
             sort_order: 0
           };
         });
-        const { data: createdCountries } = await supabaseAdmin
+        const { data: createdCountries } = await db
           .from("countries")
           .insert(newCountriesPayload)
           .select("id, name, code");
@@ -260,45 +259,45 @@ export async function POST(req: NextRequest) {
       // Prepare channels payload
       const seenSlugs = new Set<string>();
       const channelRows = parsed
-        .filter((c) => {
-          if (!c.name || !c.streamUrl || !isValidStreamUrl(c.streamUrl)) return false;
-          const baseSlug = generateSlug(c.name) || `ch-${Math.random().toString(36).slice(2, 8)}`;
-          let slug = baseSlug;
-          let i = 1;
-          while (seenSlugs.has(slug)) {
-            slug = `${baseSlug}-${i}`;
-            i++;
-          }
-          seenSlugs.add(slug);
-          c.slug = slug;
-          return true;
-        })
-        .map((c) => {
-          // Resolve individual channel category/country if not overridden by playlist type
-          let finalCategoryId = playlistCategoryId;
-          if (!finalCategoryId && c.group) {
-            const groups = c.group.split(";").map(g => g.trim()).filter(Boolean);
-            const groupName = groups[0] || "";
-            finalCategoryId = catMap.get(generateSlug(groupName)) || null;
-          }
+          .filter((c) => {
+            if (!c.name || !c.streamUrl || !isValidStreamUrl(c.streamUrl)) return false;
+            const baseSlug = generateSlug(c.name) || `ch-${Math.random().toString(36).slice(2, 8)}`;
+            let slug = baseSlug;
+            let i = 1;
+            while (seenSlugs.has(slug)) {
+              slug = `${baseSlug}-${i}`;
+              i++;
+            }
+            seenSlugs.add(slug);
+            c.slug = slug;
+            return true;
+          })
+          .map((c) => {
+            // Resolve individual channel category/country if not overridden by playlist type
+            let finalCategoryId = playlistCategoryId;
+            if (!finalCategoryId && c.group) {
+              const groups = c.group.split(";").map(g => g.trim()).filter(Boolean);
+              const groupName = groups[0] || "";
+              finalCategoryId = catMap.get(generateSlug(groupName)) || null;
+            }
 
-          let finalCountryId = playlistCountryId;
-          if (!finalCountryId && c.country) {
-            finalCountryId = countryMap.get(c.country.trim().toUpperCase()) || null;
-          }
+            let finalCountryId = playlistCountryId;
+            if (!finalCountryId && c.country) {
+              finalCountryId = countryMap.get(c.country.trim().toUpperCase()) || null;
+            }
 
-          return {
-            name: sanitizeText(c.name, 200),
-            slug: c.slug,
-            stream_url: c.streamUrl,
-            logo_url: c.logo || null,
-            epg_id: c.epgId || null,
-            language: c.tvgLanguage || null,
-            category_id: finalCategoryId,
-            country_id: finalCountryId,
-            is_active: true
-          };
-        });
+            return {
+              name: sanitizeText(c.name, 200),
+              slug: c.slug,
+              stream_url: c.streamUrl,
+              logo_url: c.logo || null,
+              epg_id: c.epgId || null,
+              language: c.tvgLanguage || null,
+              category_id: finalCategoryId,
+              country_id: finalCountryId,
+              is_active: true
+            };
+          });
 
       // Upsert channels in chunks
       let imported = 0;
@@ -307,7 +306,7 @@ export async function POST(req: NextRequest) {
         const chunk = channelRows.slice(i, i + CHUNK);
         
         // 1. Fetch existing channels in this chunk to merge metadata
-        const { data: existingChannels } = await supabaseAdmin
+        const { data: existingChannels } = await db
           .from("channels")
           .select("id, slug, category_id, country_id, logo_url, language, epg_id")
           .in("slug", chunk.map(c => c.slug));
@@ -330,7 +329,7 @@ export async function POST(req: NextRequest) {
           return c;
         });
 
-        const { data, error: upsertError } = await supabaseAdmin
+        const { data, error: upsertError } = await db
           .from("channels")
           .upsert(mergedChunk, { onConflict: "slug", ignoreDuplicates: false })
           .select("id");
@@ -343,7 +342,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Update last_imported_at for the playlist
-      await supabaseAdmin
+      await db
         .from("playlists")
         .update({ last_imported_at: new Date().toISOString() })
         .eq("id", playlist.id);
@@ -353,7 +352,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log the sync event
-    await supabaseAdmin.from("activity_logs").insert({
+    await db.from("activity_logs").insert({
       action: "playlists.sync",
       detail: `Synced ${totalImported} channels across active playlists.`
     });
