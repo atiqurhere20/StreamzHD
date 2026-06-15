@@ -8,74 +8,67 @@ interface Props {
 }
 
 export function AdRenderer({ html, isGlobal = false, position = "" }: Props) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!iframeRef.current) return;
+    if (!containerRef.current) return;
     
-    const iframe = iframeRef.current;
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
+    // Clear previous children
+    containerRef.current.innerHTML = "";
 
-    // Standardize protocol-relative URLs inside script tags (e.g. src="//xxx" to src="https://xxx")
-    let processedHtml = html;
-    processedHtml = processedHtml.replace(/src="\/\//g, 'src="https://');
-    processedHtml = processedHtml.replace(/src='\/\//g, "src='https://");
+    // Parse the HTML snippet safely
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
 
-    const content = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            html, body {
-              margin: 0;
-              padding: 0;
-              width: 100%;
-              height: 100%;
-              overflow: hidden;
-              background: transparent;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-          </style>
-        </head>
-        <body>
-          ${processedHtml}
-        </body>
-      </html>
-    `;
+    // 1. Copy over non-script elements (styles, placeholders, divs)
+    const bodyNodes = Array.from(doc.body.childNodes);
+    bodyNodes.forEach((node) => {
+      if (node.nodeName !== "SCRIPT") {
+        containerRef.current?.appendChild(node.cloneNode(true));
+      }
+    });
 
-    doc.open();
-    doc.write(content);
-    doc.close();
+    // 2. Safely create and append script tags to trigger execution in the main document
+    const scripts = doc.querySelectorAll("script");
+    scripts.forEach((oldScript) => {
+      const newScript = document.createElement("script");
+      
+      // Copy all attributes (src, async, type, etc.)
+      Array.from(oldScript.attributes).forEach((attr) => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+
+      // Ensure protocol-relative URLs are resolved to https
+      const src = oldScript.getAttribute("src");
+      if (src && src.startsWith("//")) {
+        newScript.setAttribute("src", `https:${src}`);
+      }
+
+      // Copy inner script content if any
+      if (oldScript.innerHTML) {
+        newScript.innerHTML = oldScript.innerHTML;
+      }
+
+      // Append to the container in the main document
+      containerRef.current?.appendChild(newScript);
+    });
   }, [html]);
 
+  // For global scripts (popunders, push, vignette), we don't want to show any layout box
   if (isGlobal) {
-    return (
-      <iframe
-        ref={iframeRef}
-        title="Global Ad Link"
-        className="w-0 h-0 absolute opacity-0 pointer-events-none border-0"
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
-      />
-    );
+    return <div ref={containerRef} className="hidden w-0 h-0 pointer-events-none opacity-0" />;
   }
 
-  // Set appropriate height based on the slot position name
-  let heightClass = "h-[250px]";
+  // Set appropriate min-height based on the position name to avoid Cumulative Layout Shift (CLS)
+  let minHeightClass = "min-h-[250px]";
   if (position.includes("top") || position.includes("middle") || position.includes("footer")) {
-    heightClass = "h-[95px]";
+    minHeightClass = "min-h-[90px]";
   }
 
   return (
-    <div className="w-full flex justify-center items-center overflow-hidden">
-      <iframe
-        ref={iframeRef}
-        title="Advertisement"
-        className={`w-full ${heightClass} border-0 bg-transparent overflow-hidden`}
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
-      />
-    </div>
+    <div 
+      ref={containerRef} 
+      className={`w-full flex justify-center items-center overflow-hidden ${minHeightClass}`} 
+    />
   );
 }
