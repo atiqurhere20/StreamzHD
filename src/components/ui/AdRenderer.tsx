@@ -1,37 +1,81 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-export function AdRenderer({ html }: { html: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+interface Props {
+  html: string;
+  isGlobal?: boolean;
+  position?: string;
+}
+
+export function AdRenderer({ html, isGlobal = false, position = "" }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!iframeRef.current) return;
+    
+    const iframe = iframeRef.current;
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
 
-    // Clean up any previously created dynamic scripts from this container
-    const existingDynamicScripts = containerRef.current.querySelectorAll("script[data-dynamic-ad]");
-    existingDynamicScripts.forEach((s) => s.remove());
+    // Standardize protocol-relative URLs inside script tags (e.g. src="//xxx" to src="https://xxx")
+    let processedHtml = html;
+    processedHtml = processedHtml.replace(/src="\/\//g, 'src="https://');
+    processedHtml = processedHtml.replace(/src='\/\//g, "src='https://");
 
-    const scripts = containerRef.current.querySelectorAll("script");
-    scripts.forEach((oldScript) => {
-      const newScript = document.createElement("script");
-      
-      // Copy all attributes
-      Array.from(oldScript.attributes).forEach((attr) => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-      
-      // Mark as dynamic so we can track/clean
-      newScript.setAttribute("data-dynamic-ad", "true");
-      
-      // Copy script code
-      if (oldScript.innerHTML) {
-        newScript.innerHTML = oldScript.innerHTML;
-      }
-      
-      // Replace in DOM to trigger execution
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+              background: transparent;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+          </style>
+        </head>
+        <body>
+          ${processedHtml}
+        </body>
+      </html>
+    `;
+
+    doc.open();
+    doc.write(content);
+    doc.close();
   }, [html]);
 
-  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
+  if (isGlobal) {
+    return (
+      <iframe
+        ref={iframeRef}
+        title="Global Ad Link"
+        className="w-0 h-0 absolute opacity-0 pointer-events-none border-0"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+      />
+    );
+  }
+
+  // Set appropriate height based on the slot position name
+  let heightClass = "h-[250px]";
+  if (position.includes("top") || position.includes("middle") || position.includes("footer")) {
+    heightClass = "h-[95px]";
+  }
+
+  return (
+    <div className="w-full flex justify-center items-center overflow-hidden">
+      <iframe
+        ref={iframeRef}
+        title="Advertisement"
+        className={`w-full ${heightClass} border-0 bg-transparent overflow-hidden`}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+      />
+    </div>
+  );
 }

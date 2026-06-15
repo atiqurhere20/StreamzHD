@@ -26,13 +26,13 @@ export async function AdSlot({ position }: Props) {
   }
 
   if (position.startsWith("global_")) {
-    return <AdRenderer html={data.script_html} />;
+    return <AdRenderer html={data.script_html} isGlobal={true} position={position} />;
   }
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
       <div className="rounded-xl overflow-hidden border border-border bg-card">
-        <AdRenderer html={data.script_html} />
+        <AdRenderer html={data.script_html} position={position} />
       </div>
     </div>
   );
