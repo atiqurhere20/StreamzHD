@@ -42,20 +42,65 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
   const channel = await fetchChannel(slug);
   if (!channel) notFound();
 
-  // Fetch related channels securely without exposing stream_url
+  // Fetch related channels: Prioritize channels in the same custom collections first, then same category, then popular channels.
   let relatedChannels: Channel[] = [];
-  if (channel.category_id) {
-    const { data } = await supabasePublic
+  const existingIds = new Set<string>([channel.id]);
+
+  // 1. Fetch collection peers
+  const { data: colMappings } = await supabasePublic
+    .from("collection_channels")
+    .select("collection_id")
+    .eq("channel_id", channel.id);
+  
+  const colIds = (colMappings || []).map((m: any) => m.collection_id);
+  if (colIds.length > 0) {
+    const { data: peerMappings } = await supabasePublic
+      .from("collection_channels")
+      .select("channel_id")
+      .in("collection_id", colIds)
+      .neq("channel_id", channel.id)
+      .limit(24);
+    
+    const peerChannelIds = Array.from(new Set((peerMappings || []).map((m: any) => m.channel_id)));
+    if (peerChannelIds.length > 0) {
+      const { data: collectionPeers } = await supabasePublic
+        .from("channels")
+        .select("id, name, slug, logo_url, category_id, country_id, language, is_featured, is_active, view_count, category:categories(name,slug), country:countries(name,code)")
+        .in("id", peerChannelIds)
+        .eq("is_active", true)
+        .limit(12);
+        
+      if (collectionPeers) {
+        for (const item of collectionPeers) {
+          relatedChannels.push(item as unknown as Channel);
+          existingIds.add(item.id);
+        }
+      }
+    }
+  }
+
+  // 2. Fetch category peers
+  if (relatedChannels.length < 12 && channel.category_id) {
+    const { data: catPeers } = await supabasePublic
       .from("channels")
       .select("id, name, slug, logo_url, category_id, country_id, language, is_featured, is_active, view_count, category:categories(name,slug), country:countries(name,code)")
       .eq("is_active", true)
       .eq("category_id", channel.category_id)
       .neq("id", channel.id)
-      .limit(12);
-    relatedChannels = (data as unknown as Channel[]) || [];
+      .limit(12 - relatedChannels.length);
+      
+    if (catPeers) {
+      for (const item of catPeers) {
+        if (!existingIds.has(item.id)) {
+          relatedChannels.push(item as unknown as Channel);
+          existingIds.add(item.id);
+        }
+      }
+    }
   }
 
-  if (relatedChannels.length < 6) {
+  // 3. Fallback to popular channels
+  if (relatedChannels.length < 12) {
     const { data: fallback } = await supabasePublic
       .from("channels")
       .select("id, name, slug, logo_url, category_id, country_id, language, is_featured, is_active, view_count, category:categories(name,slug), country:countries(name,code)")
@@ -63,11 +108,12 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
       .neq("id", channel.id)
       .order("view_count", { ascending: false })
       .limit(12 - relatedChannels.length);
+      
     if (fallback) {
-      const existingIds = new Set(relatedChannels.map(c => c.id));
       for (const item of fallback) {
         if (!existingIds.has(item.id)) {
           relatedChannels.push(item as unknown as Channel);
+          existingIds.add(item.id);
         }
       }
     }
