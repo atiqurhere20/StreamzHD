@@ -53,10 +53,12 @@ import { AdSlot } from "@/components/ui/AdSlot";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <body className="pb-16 md:pb-0 min-h-screen flex flex-col justify-between">
+    <html lang="en" className={`${display.variable} ${body.variable} h-full overflow-hidden`}>
+      <body className="h-full flex flex-col justify-between bg-bg text-text overflow-hidden select-none">
         <AdSlot position="global_header" />
-        <div className="flex-grow">{children}</div>
+        <div className="flex-grow overflow-y-auto min-h-0 select-text pb-16 md:pb-0">
+          {children}
+        </div>
         <BottomNav />
         <AdSlot position="global_body" />
       </body>
