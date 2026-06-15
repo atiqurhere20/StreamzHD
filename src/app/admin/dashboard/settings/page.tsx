@@ -26,6 +26,7 @@ export default function SettingsAdmin() {
   const fields = [
     { key: "site_name", label: "Site name" },
     { key: "site_description", label: "Site description" },
+    { key: "telegram_url", label: "Join Telegram URL" },
     { key: "channels_per_page", label: "Channels per page" },
     { key: "maintenance_mode", label: "Maintenance mode (true/false)" },
     { key: "player_autoplay", label: "Player autoplay (true/false)" },

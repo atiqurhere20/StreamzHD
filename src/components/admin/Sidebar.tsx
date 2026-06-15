@@ -5,7 +5,7 @@ import { Logo } from "@/components/ui/Logo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   LayoutDashboard, Radio, Image as ImageIcon, Layers, Globe, Megaphone, FolderOpen,
-  Calendar, Settings, LogOut, Upload, PlusCircle,
+  Calendar, Settings, LogOut, Upload, PlusCircle, List,
 } from "lucide-react";
 
 const NAV: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; icon: React.ComponentType<{ className?
   { href: "/admin/dashboard/channels", label: "Channels", icon: Radio },
   { href: "/admin/dashboard/channels/add", label: "Add Channel", icon: PlusCircle },
   { href: "/admin/dashboard/channels/import", label: "M3U Import", icon: Upload },
+  { href: "/admin/dashboard/collections", label: "Collections", icon: List },
   { href: "/admin/dashboard/slider", label: "Hero Slider", icon: ImageIcon },
   { href: "/admin/dashboard/categories", label: "Categories", icon: Layers },
   { href: "/admin/dashboard/countries", label: "Countries", icon: Globe },

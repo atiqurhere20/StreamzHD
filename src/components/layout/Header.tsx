@@ -1,9 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, Heart, Menu, X } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Search, Send } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 
 const NAV = [
@@ -17,6 +16,45 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [telegramUrl, setTelegramUrl] = useState("https://t.me/streamzhd");
+
+  // Sync with URL query on mount/navigation
+  useEffect(() => {
+    if (pathname === "/search") {
+      const params = new URLSearchParams(window.location.search);
+      setQ(params.get("q") || "");
+    } else {
+      setQ("");
+    }
+  }, [pathname]);
+
+  // Load Telegram URL setting
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.telegram_url) {
+          setTelegramUrl(d.settings.telegram_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleSearchChange(val: string) {
+    setQ(val);
+    const trimmed = val.trim();
+    if (pathname !== "/search") {
+      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      if (trimmed) {
+        params.set("q", trimmed);
+      } else {
+        params.delete("q");
+      }
+      router.replace(`/search?${params.toString()}`, { scroll: false });
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,16 +89,22 @@ export function Header() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-dim" />
             <input
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search..."
               className="w-full bg-card/60 border border-border/80 rounded-full pl-9 pr-4 py-1.5 sm:py-2 text-xs sm:text-sm focus:border-primary focus:bg-card focus:outline-none transition-all duration-200"
             />
           </div>
         </form>
 
-        <Link href="/search" aria-label="Favorites" className="hidden sm:flex h-10 w-10 rounded-full items-center justify-center hover:bg-card transition">
-          <Heart className="h-5 w-5 text-text-muted" />
-        </Link>
+        <a
+          href={telegramUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#0088cc] hover:bg-[#0077b5] text-white px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all shadow-md shadow-[#0088cc]/25 shrink-0"
+        >
+          <Send className="h-3.5 w-3.5 fill-white rotate-45 -mt-0.5" />
+          <span className="hidden sm:inline">Join Telegram</span>
+        </a>
       </div>
     </header>
   );

@@ -9,10 +9,10 @@ import { CountrySection } from "@/components/home/CountrySection";
 import { AdSlot } from "@/components/ui/AdSlot";
 import type { Category, Channel, Country, SliderImage } from "@/types";
 
-export const revalidate = 60;
+export const revalidate = 10; // short cache so homepage updates promptly when admin modifies collections
 
 async function fetchHomeData() {
-  const [slides, featured, recent, popular, trending, cats, countries] = await Promise.all([
+  const [slides, featured, recent, popular, trending, cats, countries, collectionsData] = await Promise.all([
     supabasePublic.from("slider_images").select("*").eq("is_active", true).order("sort_order"),
     supabasePublic.from("channels").select("*, category:categories(name,slug), country:countries(name,code)").eq("is_active", true).eq("is_featured", true).order("sort_order").limit(12),
     supabasePublic.from("channels").select("*, category:categories(name,slug), country:countries(name,code)").eq("is_active", true).order("created_at", { ascending: false }).limit(12),
@@ -20,7 +20,35 @@ async function fetchHomeData() {
     supabasePublic.from("channels").select("id,name,slug,language,is_featured,is_active").eq("is_active", true).order("view_count", { ascending: false }).limit(6),
     supabasePublic.from("categories").select("*, channels:channels(count)").order("sort_order"),
     supabasePublic.from("countries").select("*, channels:channels(count)").order("sort_order"),
+    supabasePublic.from("collections").select("id, name, slug").eq("is_active", true).order("sort_order"),
   ]);
+
+  const customCollections: { name: string; slug: string; channels: Channel[] }[] = [];
+  if (collectionsData.data && collectionsData.data.length > 0) {
+    for (const col of collectionsData.data) {
+      const { data: mappings } = await supabasePublic
+        .from("collection_channels")
+        .select("channel_id")
+        .eq("collection_id", col.id);
+      const ids = (mappings || []).map((m: any) => m.channel_id);
+      if (ids.length > 0) {
+        const { data: colChannels } = await supabasePublic
+          .from("channels")
+          .select("*, category:categories(name,slug), country:countries(name,code)")
+          .in("id", ids)
+          .eq("is_active", true)
+          .limit(12);
+        if (colChannels && colChannels.length > 0) {
+          customCollections.push({
+            name: col.name,
+            slug: col.slug,
+            channels: colChannels as Channel[],
+          });
+        }
+      }
+    }
+  }
+
   return {
     slides: (slides.data || []) as SliderImage[],
     featured: (featured.data || []) as Channel[],
@@ -42,12 +70,13 @@ async function fetchHomeData() {
       .filter(c => c.channel_count > 0)
       .sort((a, b) => b.channel_count - a.channel_count)
       .slice(0, 16) as Country[],
+    customCollections,
   };
 }
 
 export default async function HomePage() {
   const d = await fetchHomeData().catch(() => ({
-    slides: [], featured: [], recent: [], popular: [], trending: [], categories: [], countries: [],
+    slides: [], featured: [], recent: [], popular: [], trending: [], categories: [], countries: [], customCollections: [],
   }));
 
   return (
@@ -65,9 +94,15 @@ export default async function HomePage() {
           } as SliderImage]} />
         </div>
         <AdSlot position="homepage_top" />
-        <ChannelGrid title="Featured Channels" channels={d.featured} viewAllHref="/search?filter=featured" />
-        <ChannelGrid title="Recently Added" channels={d.recent} viewAllHref="/search?sort=new" />
-        <ChannelGrid title="Most Popular" channels={d.popular} viewAllHref="/search?sort=popular" />
+        <ChannelGrid title="Featured Channels" channels={d.featured} viewAllHref="/collection/featured" />
+        <ChannelGrid title="Recently Added" channels={d.recent} viewAllHref="/collection/recently-added" />
+        <ChannelGrid title="Most Popular" channels={d.popular} viewAllHref="/collection/most-popular" />
+        
+        {/* Custom Admin Collections */}
+        {d.customCollections.map((col) => (
+          <ChannelGrid key={col.slug} title={col.name} channels={col.channels} viewAllHref={`/collection/${col.slug}`} />
+        ))}
+
         <AdSlot position="homepage_middle" />
         <CategorySection categories={d.categories} />
         <CountrySection countries={d.countries} />
